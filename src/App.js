@@ -871,7 +871,6 @@ function ConciergePage({ onBack, prefillListing }) {
 export default function ImmoBenin() {
   const [listings,setListings]=useState([]);
   const [loading,setLoading]=useState(true);
-  const [dbConnected,setDbConnected]=useState(false);
   const [filter,setFilter]=useState("Tous");
   const [city,setCity]=useState("Toutes villes");
   const [search,setSearch]=useState("");
@@ -884,9 +883,9 @@ export default function ImmoBenin() {
     setLoading(true);
     try {
       const data=await db.get("listings","?select=*,agents(full_name,phone,agency_name)&is_active=eq.true&order=is_featured.desc,created_at.desc");
-      if(Array.isArray(data)&&data.length>0){ setListings(data); setDbConnected(true); }
-      else { setListings(DEMO_LISTINGS); setDbConnected(false); }
-    } catch { setListings(DEMO_LISTINGS); setDbConnected(false); }
+      if(Array.isArray(data)&&data.length>0){ setListings(data); }
+      else { setListings(DEMO_LISTINGS); }
+    } catch { setListings(DEMO_LISTINGS); }
     setLoading(false);
   },[]);
 
