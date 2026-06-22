@@ -34,7 +34,7 @@ const PRICE_TOTAL_FEATURED = PRICE_STANDARD + PRICE_FEATURED;
 // SERVICE CONCIERGE — vérification sur place par un agent mandaté
 // ============================================================
 const CONCIERGE_FIXED_CITIES = ["Cotonou", "Abomey-Calavi"];
-const CONCIERGE_FIXED_PRICE = 11000;
+const CONCIERGE_FIXED_PRICE = 35000;
 
 const DEMO_LISTINGS = [
   { id:"1", is_featured:true, type:"Vente", category:"Villa", title:"Villa moderne à Fidjrossè", price:85000000, city:"Cotonou", neighborhood:"Fidjrossè", bedrooms:4, bathrooms:3, area:320, images:["https://images.unsplash.com/photo-1613977257363-707ba9348227?w=600&q=80","https://images.unsplash.com/photo-1560185893-a55cbc8c57e8?w=600&q=80","https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=600&q=80"], agents:{full_name:"Rodrigue Kossou",phone:"22997001122",agency_name:"Kossou Immobilier"}, created_at:new Date().toISOString(), is_active:true },
@@ -63,7 +63,10 @@ const db = {
       headers:{ apikey:SUPABASE_ANON_KEY, Authorization:`Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": file.type },
       body: file
     });
-    if (!res.ok) throw new Error("Upload échoué");
+    if (!res.ok) {
+      const body = await res.text().catch(()=>"");
+      throw new Error(`HTTP ${res.status} ${res.statusText} — ${body.slice(0,150)}`);
+    }
     return `${SUPABASE_URL}/storage/v1/object/public/Listing-Images/${path}`;
   }
 };
@@ -496,6 +499,7 @@ function PublishModal({onClose,onSuccess}) {
 
       // 2. Upload photos
       const imageUrls=[];
+      const uploadErrors=[];
       for(let i=0;i<photos.length;i++){
         setUploadProgress({current:i+1,total:photos.length,label:`Upload photo ${i+1}/${photos.length}...`});
         const ext=photos[i].file.name.split(".").pop()||"jpg";
@@ -503,7 +507,10 @@ function PublishModal({onClose,onSuccess}) {
         try {
           const url=await db.uploadImage(photos[i].file, path);
           imageUrls.push(url);
-        } catch(e){ /* skip failed uploads */ }
+        } catch(e){ uploadErrors.push(e.message||"erreur inconnue"); }
+      }
+      if(uploadErrors.length>0 && imageUrls.length===0){
+        throw new Error(`Échec de l'upload des photos : ${uploadErrors[0]}`);
       }
 
       // 3. Create listing
