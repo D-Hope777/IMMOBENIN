@@ -6,9 +6,35 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 const SUPABASE_URL = "https://frfltrcvilohwzsagkyf.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_Vi37xSbxZuPhmhZfkm3pQg_44lcUroe";
 
+// ============================================================
+// NUMÉROS DE PAIEMENT — Remplissez quand vous avez le numéro,
+// laissez "" (vide) pour les méthodes pas encore actives.
+// Elles n'apparaîtront pas sur le site jusqu'à ce qu'un numéro soit renseigné.
+// ============================================================
+const PAYMENT_METHODS = [
+  { id: "mtn", label: "MTN Mobile Money", number: "01 69 13 58 60", color: "#FFCC00", textColor: "#1C1C1E" },
+  { id: "moov", label: "Moov Money", number: "", color: "#0099CC", textColor: "#fff" },
+  { id: "wave", label: "Wave", number: "", color: "#1DC9E8", textColor: "#1C1C1E" },
+  { id: "celtiis", label: "Celtiis Money", number: "", color: "#E30613", textColor: "#fff" },
+].filter(m => m.number); // n'affiche que les méthodes avec un numéro renseigné
+
 const FALLBACK_IMG = "https://images.unsplash.com/photo-1613977257363-707ba9348227?w=600&q=80";
 const MAX_PHOTOS = 8;
 const MAX_SIZE_MB = 5;
+
+// ============================================================
+// TARIFICATION — modifiez ces deux valeurs pour ajuster les prix
+// (ex: promotion temporaire à 1000 XOF)
+// ============================================================
+const PRICE_STANDARD = 1000;  // publication 60 jours
+const PRICE_FEATURED = 5000;  // supplément mise en vedette
+const PRICE_TOTAL_FEATURED = PRICE_STANDARD + PRICE_FEATURED;
+
+// ============================================================
+// SERVICE CONCIERGE — vérification sur place par un agent mandaté
+// ============================================================
+const CONCIERGE_FIXED_CITIES = ["Cotonou", "Abomey-Calavi"];
+const CONCIERGE_FIXED_PRICE = 11000;
 
 const DEMO_LISTINGS = [
   { id:"1", is_featured:true, type:"Vente", category:"Villa", title:"Villa moderne à Fidjrossè", price:85000000, city:"Cotonou", neighborhood:"Fidjrossè", bedrooms:4, bathrooms:3, area:320, images:["https://images.unsplash.com/photo-1613977257363-707ba9348227?w=600&q=80","https://images.unsplash.com/photo-1560185893-a55cbc8c57e8?w=600&q=80","https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=600&q=80"], agents:{full_name:"Rodrigue Kossou",phone:"22997001122",agency_name:"Kossou Immobilier"}, created_at:new Date().toISOString(), is_active:true },
@@ -378,7 +404,7 @@ function Card({l, onSelect}) {
 // ============================================================
 // DETAIL MODAL (with gallery)
 // ============================================================
-function DetailModal({listing,onClose}) {
+function DetailModal({listing,onClose,onRequestVerification}) {
   const [form,setForm]=useState({name:"",phone:"",message:""});
   const [sent,setSent]=useState(false);
   const [sending,setSending]=useState(false);
@@ -413,6 +439,11 @@ function DetailModal({listing,onClose}) {
             {listing.bathrooms&&<div style={{textAlign:"center"}}><div style={{fontSize:20}}>🚿</div><div style={{fontSize:14,fontWeight:700,fontFamily:"Inter,sans-serif"}}>{listing.bathrooms}</div><div style={{fontSize:11,color:"#888"}}>Sdb</div></div>}
             {listing.area&&<div style={{textAlign:"center"}}><div style={{fontSize:20}}>📐</div><div style={{fontSize:14,fontWeight:700,fontFamily:"Inter,sans-serif"}}>{listing.area}</div><div style={{fontSize:11,color:"#888"}}>m²</div></div>}
           </div>
+
+          {/* CONCIERGE CTA */}
+          <button onClick={()=>onRequestVerification?.(listing)} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:8,padding:"12px",background:"#FFF8E1",border:"2px solid #FFCC80",borderRadius:12,color:"#7A4F01",fontFamily:"Inter,sans-serif",fontWeight:700,fontSize:13,cursor:"pointer",marginBottom:18}}>
+            🕵️ Faire vérifier ce bien par un agent ImmoBénin
+          </button>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:14,background:"#F9F9F9",borderRadius:12,marginBottom:18}}>
             <div>
               <div style={{fontSize:14,fontWeight:700,fontFamily:"Inter,sans-serif"}}>{listing.agents?.full_name||"Agent"}</div>
@@ -450,8 +481,9 @@ function PublishModal({onClose,onSuccess}) {
   const [error,setError]=useState("");
   const [photos,setPhotos]=useState([]); // [{file, preview, id}]
   const [f,setF]=useState({type:"Vente",category:"Villa",title:"",description:"",price:"",city:"Cotonou",neighborhood:"",area:"",bedrooms:"",bathrooms:"",is_featured:false,agent_name:"",agent_phone:"",agent_email:"",agency_name:""});
+  const [acceptedTerms,setAcceptedTerms]=useState(false);
   const u=(k,v)=>setF(p=>({...p,[k]:v}));
-  const cost=f.is_featured?7000:2000;
+  const cost=f.is_featured?PRICE_TOTAL_FEATURED:PRICE_STANDARD;
 
   const submit=async()=>{
     setLoading(true); setError(""); setUploadProgress({current:0,total:0,label:""});
@@ -476,7 +508,7 @@ function PublishModal({onClose,onSuccess}) {
 
       // 3. Create listing
       setUploadProgress({current:photos.length,total:photos.length,label:"Enregistrement de l'annonce..."});
-      const listingRes=await db.post("listings",{agent_id:agent.id,title:f.title,description:f.description||null,type:f.type,category:f.category,city:f.city,neighborhood:f.neighborhood||null,price:parseInt(f.price),area:f.area?parseInt(f.area):null,bedrooms:f.bedrooms?parseInt(f.bedrooms):null,bathrooms:f.bathrooms?parseInt(f.bathrooms):null,is_featured:f.is_featured,images:imageUrls,payment_status:"pending"});
+      const listingRes=await db.post("listings",{agent_id:agent.id,title:f.title,description:f.description||null,type:f.type,category:f.category,city:f.city,neighborhood:f.neighborhood||null,price:parseInt(f.price),area:f.area?parseInt(f.area):null,bedrooms:f.bedrooms?parseInt(f.bedrooms):null,bathrooms:f.bathrooms?parseInt(f.bathrooms):null,is_featured:f.is_featured,images:imageUrls,payment_status:"pending",terms_accepted_at:new Date().toISOString()});
       const listing=Array.isArray(listingRes)?listingRes[0]:listingRes;
       if(!listing?.id) throw new Error("Erreur lors de la création de l'annonce");
 
@@ -584,12 +616,40 @@ function PublishModal({onClose,onSuccess}) {
               </div>
               <div style={{background:"#fff3e0",borderRadius:14,padding:16,border:"2px solid #E8A020",marginBottom:12}}>
                 <div style={{fontFamily:"Poppins,sans-serif",fontWeight:800,fontSize:14,marginBottom:8}}>Montant à payer</div>
-                <div style={{display:"flex",justifyContent:"space-between",fontFamily:"Inter,sans-serif",fontSize:13,marginBottom:3}}><span>Publication 60 jours</span><span style={{fontWeight:700}}>2 000 XOF</span></div>
-                {f.is_featured&&<div style={{display:"flex",justifyContent:"space-between",fontFamily:"Inter,sans-serif",fontSize:13,marginBottom:3}}><span>⭐ Mise en vedette</span><span style={{fontWeight:700}}>5 000 XOF</span></div>}
+                <div style={{display:"flex",justifyContent:"space-between",fontFamily:"Inter,sans-serif",fontSize:13,marginBottom:3}}><span>Publication 60 jours</span><span style={{fontWeight:700}}>{PRICE_STANDARD.toLocaleString("fr-FR")} XOF</span></div>
+                {f.is_featured&&<div style={{display:"flex",justifyContent:"space-between",fontFamily:"Inter,sans-serif",fontSize:13,marginBottom:3}}><span>⭐ Mise en vedette</span><span style={{fontWeight:700}}>{PRICE_FEATURED.toLocaleString("fr-FR")} XOF</span></div>}
                 <div style={{display:"flex",justifyContent:"space-between",fontFamily:"Poppins,sans-serif",fontSize:19,fontWeight:800,color:"#C0522A",marginTop:8,paddingTop:8,borderTop:"2px solid #E8A020"}}><span>Total</span><span>{cost.toLocaleString("fr-FR")} XOF</span></div>
               </div>
-              <div style={{background:"#E8F5E9",borderRadius:12,padding:12,fontSize:12,fontFamily:"Inter,sans-serif",color:"#2e7d32"}}>
-                💳 Paiement via <strong>MTN Mobile Money</strong> ou <strong>Moov Money</strong>
+              <div style={{background:"#FAF7F2",borderRadius:14,padding:16,border:"2px solid #E0DDD8"}}>
+                <div style={{fontFamily:"Poppins,sans-serif",fontWeight:800,fontSize:14,marginBottom:10}}>💳 Comment payer</div>
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  {PAYMENT_METHODS.map(m=>(
+                    <div key={m.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:m.color,color:m.textColor,borderRadius:10,padding:"10px 14px"}}>
+                      <span style={{fontFamily:"Inter,sans-serif",fontWeight:700,fontSize:13}}>{m.label}</span>
+                      <span style={{fontFamily:"Poppins,sans-serif",fontWeight:800,fontSize:15,letterSpacing:0.5}}>{m.number}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{fontFamily:"Inter,sans-serif",fontSize:12,color:"#888",marginTop:10}}>
+                  Envoyez exactement <strong>{cost.toLocaleString("fr-FR")} XOF</strong> à l'un de ces numéros, puis attendez la confirmation.
+                </div>
+              </div>
+
+              {/* DISCLAIMER LÉGAL */}
+              <div style={{background:"#FFF8E1",border:"2px solid #FFCC80",borderRadius:14,padding:16,marginTop:14}}>
+                <div style={{fontFamily:"Poppins,sans-serif",fontWeight:800,fontSize:13,color:"#7A4F01",marginBottom:8}}>⚖️ Engagement de bonne foi</div>
+                <ul style={{fontFamily:"Inter,sans-serif",fontSize:12,color:"#5D4500",lineHeight:1.6,margin:"0 0 10px",paddingLeft:18}}>
+                  <li>Je certifie que ce bien existe réellement et que j'ai le droit de le vendre ou de le louer.</li>
+                  <li>Les informations fournies (prix, localisation, état du bien) sont exactes à ma connaissance.</li>
+                  <li>Je comprends que la publication d'une fausse annonce, d'une annonce frauduleuse, ou l'usurpation de l'identité d'un tiers est passible de poursuites pénales conformément à la législation béninoise en vigueur.</li>
+                  <li>ImmoBénin se réserve le droit de suspendre tout compte ou annonce signalé pour fraude, sans remboursement, et de transmettre les informations aux autorités compétentes si nécessaire.</li>
+                </ul>
+                <label style={{display:"flex",alignItems:"flex-start",gap:10,cursor:"pointer"}}>
+                  <input type="checkbox" checked={acceptedTerms} onChange={e=>setAcceptedTerms(e.target.checked)} style={{marginTop:2,width:18,height:18,flexShrink:0}}/>
+                  <span style={{fontFamily:"Inter,sans-serif",fontSize:12,fontWeight:700,color:"#5D4500"}}>
+                    J'ai lu et j'accepte ces conditions. Je confirme que cette annonce est authentique.
+                  </span>
+                </label>
               </div>
               {loading && uploadProgress.total>0 && <div style={{marginTop:12}}><UploadProgress {...uploadProgress}/></div>}
               {error&&<div style={{background:"#FFEBEE",borderRadius:10,padding:12,marginTop:10,color:"#C62828",fontFamily:"Inter,sans-serif",fontSize:12}}>⚠️ {error}</div>}
@@ -601,9 +661,17 @@ function PublishModal({onClose,onSuccess}) {
             <div style={{textAlign:"center",padding:"18px 0"}}>
               <div style={{fontSize:52,marginBottom:14}}>🎉</div>
               <h3 style={{fontFamily:"Poppins,sans-serif",fontWeight:800,fontSize:19,color:"#1C6E3D",marginBottom:8}}>Annonce créée avec succès !</h3>
-              <p style={{fontFamily:"Inter,sans-serif",fontSize:13,color:"#555",marginBottom:18,lineHeight:1.6}}>
-                En attente de paiement.<br/>Envoyez <strong>{cost.toLocaleString("fr-FR")} XOF</strong> via MTN MoMo ou Moov Money.
+              <p style={{fontFamily:"Inter,sans-serif",fontSize:13,color:"#555",marginBottom:14,lineHeight:1.6}}>
+                En attente de paiement de <strong>{cost.toLocaleString("fr-FR")} XOF</strong> :
               </p>
+              <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:14,textAlign:"left"}}>
+                {PAYMENT_METHODS.map(m=>(
+                  <div key={m.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:m.color,color:m.textColor,borderRadius:10,padding:"10px 14px"}}>
+                    <span style={{fontFamily:"Inter,sans-serif",fontWeight:700,fontSize:13}}>{m.label}</span>
+                    <span style={{fontFamily:"Poppins,sans-serif",fontWeight:800,fontSize:15,letterSpacing:0.5}}>{m.number}</span>
+                  </div>
+                ))}
+              </div>
               <div style={{background:"#FAF7F2",borderRadius:12,padding:12,fontSize:12,fontFamily:"Inter,sans-serif",color:"#555"}}>
                 📱 Confirmation dans les <strong>2 heures</strong> suivant le paiement.
               </div>
@@ -614,7 +682,7 @@ function PublishModal({onClose,onSuccess}) {
           <div style={{display:"flex",gap:10,marginTop:18}}>
             {step>1&&step<4&&<button onClick={()=>setStep(s=>s-1)} style={{flex:1,padding:12,border:"2px solid #E0DDD8",borderRadius:12,background:"#fff",color:"#555",fontFamily:"Inter,sans-serif",fontSize:13,fontWeight:600,cursor:"pointer"}}>← Retour</button>}
             {step<3&&<button onClick={()=>setStep(s=>s+1)} disabled={(step===1&&!canNext1)||(step===2&&!canNext2)} style={{flex:2,padding:12,background:"linear-gradient(135deg,#C0522A,#E8A020)",border:"none",borderRadius:12,color:"#fff",fontFamily:"Poppins,sans-serif",fontSize:14,fontWeight:700,cursor:"pointer",opacity:((step===1&&!canNext1)||(step===2&&!canNext2))?0.5:1}}>Continuer →</button>}
-            {step===3&&<button onClick={submit} disabled={loading} style={{flex:2,padding:12,background:loading?"#ccc":"#1C6E3D",border:"none",borderRadius:12,color:"#fff",fontFamily:"Poppins,sans-serif",fontSize:14,fontWeight:700,cursor:loading?"not-allowed":"pointer"}}>{loading?"Upload en cours...":"✓ Confirmer & Enregistrer"}</button>}
+            {step===3&&<button onClick={submit} disabled={loading||!acceptedTerms} style={{flex:2,padding:12,background:(loading||!acceptedTerms)?"#ccc":"#1C6E3D",border:"none",borderRadius:12,color:"#fff",fontFamily:"Poppins,sans-serif",fontSize:14,fontWeight:700,cursor:(loading||!acceptedTerms)?"not-allowed":"pointer"}}>{loading?"Upload en cours...":!acceptedTerms?"Acceptez les conditions ci-dessus":"✓ Confirmer & Enregistrer"}</button>}
             {step===4&&<button onClick={onClose} style={{flex:1,padding:12,background:"linear-gradient(135deg,#C0522A,#E8A020)",border:"none",borderRadius:12,color:"#fff",fontFamily:"Poppins,sans-serif",fontSize:14,fontWeight:700,cursor:"pointer"}}>Voir les annonces</button>}
           </div>
           {step<4&&<div style={{display:"flex",gap:6,justifyContent:"center",marginTop:12}}>{[1,2,3].map(n=><div key={n} style={{width:n===step?24:8,height:8,borderRadius:4,background:n<=step?"#C0522A":"#E0DDD8",transition:"all 0.3s"}}/>)}</div>}
@@ -637,6 +705,167 @@ function Spinner() {
 }
 
 // ============================================================
+// SERVICE CONCIERGE — page dédiée
+// ============================================================
+function ConciergePage({ onBack, prefillListing }) {
+  const [form, setForm] = useState({
+    listing_title: prefillListing?.title || "",
+    city: prefillListing?.city || "Cotonou",
+    requester_name: "",
+    requester_phone: "",
+    requester_role: "acheteur",
+    notes: "",
+  });
+  const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
+
+  const isFixedPrice = CONCIERGE_FIXED_CITIES.includes(form.city);
+  const priceLabel = isFixedPrice ? `${CONCIERGE_FIXED_PRICE.toLocaleString("fr-FR")} XOF` : "Sur devis";
+
+  const u = (k,v) => setForm(f=>({...f,[k]:v}));
+  const canSubmit = form.requester_name && form.requester_phone && form.city;
+
+  const submit = async () => {
+    setSending(true); setError("");
+    try {
+      await db.post("concierge_requests",{
+        listing_id: prefillListing?.id || null,
+        listing_title: form.listing_title || null,
+        city: form.city,
+        requester_name: form.requester_name,
+        requester_phone: form.requester_phone,
+        requester_role: form.requester_role,
+        notes: form.notes || null,
+        price_quoted: isFixedPrice ? CONCIERGE_FIXED_PRICE : null,
+        status: "pending"
+      });
+      setSent(true);
+    } catch(e) { setError("Une erreur est survenue, réessayez."); }
+    setSending(false);
+  };
+
+  return (
+    <div style={{fontFamily:"Inter,sans-serif",background:"#FAF7F2",minHeight:"100vh"}}>
+      <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+
+      <header style={{background:"#fff",borderBottom:"1px solid #F0EDE8",position:"sticky",top:0,zIndex:100,boxShadow:"0 2px 12px rgba(0,0,0,0.06)"}}>
+        <div style={{maxWidth:900,margin:"0 auto",padding:"0 16px",display:"flex",alignItems:"center",justifyContent:"space-between",height:64}}>
+          <div onClick={onBack} style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer"}}>
+            <div style={{width:36,height:36,borderRadius:10,background:"linear-gradient(135deg,#C0522A,#E8A020)",display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:18}}>🏡</span></div>
+            <span style={{fontFamily:"Poppins,sans-serif",fontWeight:900,fontSize:20,color:"#1C1C1E"}}>Immo<span style={{color:"#C0522A"}}>Bénin</span></span>
+          </div>
+          <button onClick={onBack} style={{background:"#F0EDE8",color:"#555",border:"none",borderRadius:10,padding:"9px 16px",fontFamily:"Inter,sans-serif",fontWeight:600,fontSize:13,cursor:"pointer"}}>← Retour au site</button>
+        </div>
+      </header>
+
+      {/* HERO */}
+      <div style={{backgroundImage:"url('https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=1400&q=85')",backgroundSize:"cover",backgroundPosition:"center",position:"relative",padding:"48px 16px 40px"}}>
+        <div style={{position:"absolute",inset:0,background:"rgba(20,10,5,0.78)"}}/>
+        <div style={{maxWidth:700,margin:"0 auto",textAlign:"center",position:"relative",zIndex:1}}>
+          <div style={{fontSize:40,marginBottom:10}}>🕵️</div>
+          <h1 style={{fontFamily:"Poppins,sans-serif",fontWeight:900,fontSize:"clamp(24px,4vw,32px)",color:"#fff",margin:"0 0 10px"}}>Service Concierge</h1>
+          <p style={{color:"rgba(255,255,255,0.75)",fontFamily:"Inter,sans-serif",fontSize:14,lineHeight:1.6,maxWidth:520,margin:"0 auto"}}>
+            Avant d'acheter ou de louer, faites vérifier un bien sur place par l'un de nos agents mandatés — visite physique, vérification du titre, photos supplémentaires. Réponse en <strong style={{color:"#E8A020"}}>24h</strong>.
+          </p>
+        </div>
+      </div>
+
+      <div style={{maxWidth:700,margin:"0 auto",padding:"32px 16px 60px"}}>
+        {/* COMMENT ÇA MARCHE */}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:14,marginBottom:28}}>
+          {[
+            {icon:"📝",title:"1. Vous demandez",desc:"Remplissez le formulaire ci-dessous avec le bien à vérifier"},
+            {icon:"📞",title:"2. On vous contacte",desc:"Un agent vous appelle pour confirmer les détails et le tarif"},
+            {icon:"🏠",title:"3. Vérification sur place",desc:"Visite physique, contrôle du titre, photos et compte-rendu"},
+            {icon:"✅",title:"4. Rapport en 24h",desc:"Vous recevez un compte-rendu détaillé par WhatsApp"},
+          ].map(s=>(
+            <div key={s.title} style={{background:"#fff",borderRadius:14,padding:16,boxShadow:"0 2px 10px rgba(0,0,0,0.06)"}}>
+              <div style={{fontSize:24,marginBottom:6}}>{s.icon}</div>
+              <div style={{fontFamily:"Poppins,sans-serif",fontWeight:700,fontSize:13,color:"#1C1C1E",marginBottom:4}}>{s.title}</div>
+              <div style={{fontFamily:"Inter,sans-serif",fontSize:12,color:"#777",lineHeight:1.5}}>{s.desc}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* TARIFS */}
+        <div style={{background:"#fff",borderRadius:16,padding:22,marginBottom:28,boxShadow:"0 2px 12px rgba(0,0,0,0.06)",border:"2px solid #F0EDE8"}}>
+          <div style={{fontFamily:"Poppins,sans-serif",fontWeight:800,fontSize:16,marginBottom:14}}>💰 Tarifs</div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 16px",background:"#FFF0EB",borderRadius:12,marginBottom:10}}>
+            <div>
+              <div style={{fontFamily:"Inter,sans-serif",fontWeight:700,fontSize:14,color:"#1C1C1E"}}>Cotonou & Abomey-Calavi</div>
+              <div style={{fontFamily:"Inter,sans-serif",fontSize:12,color:"#888"}}>Prix fixe, sans surprise</div>
+            </div>
+            <div style={{fontFamily:"Poppins,sans-serif",fontWeight:900,fontSize:20,color:"#C0522A"}}>{CONCIERGE_FIXED_PRICE.toLocaleString("fr-FR")} XOF</div>
+          </div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 16px",background:"#F5F5F5",borderRadius:12}}>
+            <div>
+              <div style={{fontFamily:"Inter,sans-serif",fontWeight:700,fontSize:14,color:"#1C1C1E"}}>Autres villes du Bénin</div>
+              <div style={{fontFamily:"Inter,sans-serif",fontSize:12,color:"#888"}}>Selon la distance et l'accessibilité</div>
+            </div>
+            <div style={{fontFamily:"Poppins,sans-serif",fontWeight:900,fontSize:16,color:"#555"}}>Sur devis</div>
+          </div>
+          <div style={{fontFamily:"Inter,sans-serif",fontSize:12,color:"#888",marginTop:12,lineHeight:1.5}}>
+            Le service peut être payé par l'acheteur intéressé ou par le vendeur souhaitant rassurer ses visiteurs.
+          </div>
+        </div>
+
+        {/* FORMULAIRE */}
+        <div style={{background:"#fff",borderRadius:16,padding:22,boxShadow:"0 2px 12px rgba(0,0,0,0.06)",border:"2px solid #F0EDE8"}}>
+          {sent ? (
+            <div style={{textAlign:"center",padding:"20px 0"}}>
+              <div style={{fontSize:48,marginBottom:12}}>🎉</div>
+              <h3 style={{fontFamily:"Poppins,sans-serif",fontWeight:800,fontSize:18,color:"#1C6E3D",marginBottom:8}}>Demande envoyée !</h3>
+              <p style={{fontFamily:"Inter,sans-serif",fontSize:13,color:"#555",lineHeight:1.6}}>
+                Un agent ImmoBénin vous contactera sur WhatsApp dans les 24h pour confirmer les détails{!isFixedPrice&&" et le tarif"}.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div style={{fontFamily:"Poppins,sans-serif",fontWeight:800,fontSize:16,marginBottom:16}}>📋 Demander une vérification</div>
+              <div style={{display:"flex",flexDirection:"column",gap:12}}>
+                <input placeholder="Titre ou lien de l'annonce concernée (optionnel)" value={form.listing_title} onChange={e=>u("listing_title",e.target.value)}
+                  style={{padding:"11px 13px",border:"2px solid #E0DDD8",borderRadius:10,fontFamily:"Inter,sans-serif",fontSize:13}}/>
+                <select value={form.city} onChange={e=>u("city",e.target.value)} style={{padding:"11px 13px",border:"2px solid #E0DDD8",borderRadius:10,fontFamily:"Inter,sans-serif",fontSize:13}}>
+                  {CITIES.slice(1).map(c=><option key={c}>{c}</option>)}
+                </select>
+                <div style={{display:"flex",gap:8}}>
+                  {["acheteur","vendeur"].map(r=>(
+                    <button key={r} onClick={()=>u("requester_role",r)} style={{flex:1,padding:10,border:`2px solid ${form.requester_role===r?"#C0522A":"#E0DDD8"}`,borderRadius:10,background:form.requester_role===r?"#FFF0EB":"#fff",color:form.requester_role===r?"#C0522A":"#555",fontWeight:700,fontFamily:"Inter,sans-serif",cursor:"pointer",textTransform:"capitalize"}}>{r}</button>
+                  ))}
+                </div>
+                <input placeholder="Votre nom complet *" value={form.requester_name} onChange={e=>u("requester_name",e.target.value)}
+                  style={{padding:"11px 13px",border:"2px solid #E0DDD8",borderRadius:10,fontFamily:"Inter,sans-serif",fontSize:13}}/>
+                <input placeholder="Votre numéro WhatsApp *" value={form.requester_phone} onChange={e=>u("requester_phone",e.target.value)}
+                  style={{padding:"11px 13px",border:"2px solid #E0DDD8",borderRadius:10,fontFamily:"Inter,sans-serif",fontSize:13}}/>
+                <textarea placeholder="Précisions utiles (adresse exacte, disponibilités pour la visite...)" value={form.notes} onChange={e=>u("notes",e.target.value)}
+                  rows={3} style={{padding:"11px 13px",border:"2px solid #E0DDD8",borderRadius:10,fontFamily:"Inter,sans-serif",fontSize:13,resize:"vertical"}}/>
+
+                <div style={{background:isFixedPrice?"#E8F5E9":"#FFF3CD",borderRadius:10,padding:"12px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <span style={{fontFamily:"Inter,sans-serif",fontSize:13,fontWeight:600,color:isFixedPrice?"#2e7d32":"#856404"}}>Tarif estimé</span>
+                  <span style={{fontFamily:"Poppins,sans-serif",fontSize:16,fontWeight:800,color:isFixedPrice?"#2e7d32":"#856404"}}>{priceLabel}</span>
+                </div>
+
+                {error&&<div style={{background:"#FFEBEE",borderRadius:10,padding:12,color:"#C62828",fontFamily:"Inter,sans-serif",fontSize:12}}>⚠️ {error}</div>}
+
+                <button onClick={submit} disabled={!canSubmit||sending} style={{padding:13,background:(!canSubmit||sending)?"#ccc":"linear-gradient(135deg,#C0522A,#E8A020)",border:"none",borderRadius:12,color:"#fff",fontFamily:"Poppins,sans-serif",fontWeight:700,fontSize:14,cursor:(!canSubmit||sending)?"not-allowed":"pointer"}}>
+                  {sending?"Envoi...":"Envoyer ma demande →"}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      <footer style={{background:"#1C1C1E",padding:"22px 16px",textAlign:"center"}}>
+        <div style={{fontFamily:"Poppins,sans-serif",fontWeight:900,fontSize:19,color:"#fff",marginBottom:4}}>Immo<span style={{color:"#C0522A"}}>Bénin</span></div>
+        <p style={{fontFamily:"Inter,sans-serif",fontSize:11,color:"rgba(255,255,255,0.4)",margin:0}}>© 2025 ImmoBénin · Cotonou, Bénin · contact@immobenin.bj</p>
+      </footer>
+    </div>
+  );
+}
+
+// ============================================================
 // MAIN APP
 // ============================================================
 export default function ImmoBenin() {
@@ -649,6 +878,7 @@ export default function ImmoBenin() {
   const [selected,setSelected]=useState(null);
   const [showPublish,setShowPublish]=useState(false);
   const [featIdx,setFeatIdx]=useState(0);
+  const [view,setView]=useState("home"); // "home" | "concierge"
 
   const fetchListings=useCallback(async()=>{
     setLoading(true);
@@ -678,21 +908,13 @@ export default function ImmoBenin() {
 
   const curFeat=featured[featIdx]||featured[0]||listings[0];
 
+  if (view==="concierge") {
+    return <ConciergePage onBack={()=>setView("home")} prefillListing={selected} />;
+  }
+
   return (
     <div style={{fontFamily:"Inter,sans-serif",background:"#FAF7F2",minHeight:"100vh"}}>
       <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
-
-      {/* STATUS */}
-      {!dbConnected&&!loading&&(
-        <div style={{background:"#FFF3CD",borderBottom:"1px solid #FFEAA7",padding:"7px 16px",textAlign:"center"}}>
-          <span style={{fontFamily:"Inter,sans-serif",fontSize:12,color:"#856404"}}>⚠️ <strong>Mode démo</strong> — Remplacez SUPABASE_URL et SUPABASE_ANON_KEY pour activer la base de données</span>
-        </div>
-      )}
-      {dbConnected&&(
-        <div style={{background:"#D4EDDA",borderBottom:"1px solid #C3E6CB",padding:"7px 16px",textAlign:"center"}}>
-          <span style={{fontFamily:"Inter,sans-serif",fontSize:12,color:"#155724"}}>✅ <strong>Supabase connecté</strong> — {listings.length} annonce{listings.length>1?"s":""} active{listings.length>1?"s":""}</span>
-        </div>
-      )}
 
       {/* HEADER */}
       <header style={{background:"#fff",borderBottom:"1px solid #F0EDE8",position:"sticky",top:0,zIndex:100,boxShadow:"0 2px 12px rgba(0,0,0,0.06)"}}>
@@ -701,9 +923,14 @@ export default function ImmoBenin() {
             <div style={{width:36,height:36,borderRadius:10,background:"linear-gradient(135deg,#C0522A,#E8A020)",display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{fontSize:18}}>🏡</span></div>
             <span style={{fontFamily:"Poppins,sans-serif",fontWeight:900,fontSize:20,color:"#1C1C1E"}}>Immo<span style={{color:"#C0522A"}}>Bénin</span></span>
           </div>
-          <button onClick={()=>setShowPublish(true)} style={{background:"linear-gradient(135deg,#C0522A,#E8A020)",color:"#fff",border:"none",borderRadius:10,padding:"10px 20px",fontFamily:"Poppins,sans-serif",fontWeight:700,fontSize:14,cursor:"pointer",boxShadow:"0 4px 14px rgba(192,82,42,0.35)"}}>
-            + Publier une annonce
-          </button>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <button onClick={()=>{setSelected(null);setView("concierge");}} style={{background:"#FAF7F2",color:"#555",border:"2px solid #F0EDE8",borderRadius:10,padding:"9px 16px",fontFamily:"Inter,sans-serif",fontWeight:600,fontSize:13,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
+              🕵️ <span style={{display:window.innerWidth<640?"none":"inline"}}>Service Concierge</span>
+            </button>
+            <button onClick={()=>setShowPublish(true)} style={{background:"linear-gradient(135deg,#C0522A,#E8A020)",color:"#fff",border:"none",borderRadius:10,padding:"10px 20px",fontFamily:"Poppins,sans-serif",fontWeight:700,fontSize:14,cursor:"pointer",boxShadow:"0 4px 14px rgba(192,82,42,0.35)"}}>
+              + Publier une annonce
+            </button>
+          </div>
         </div>
       </header>
 
@@ -771,7 +998,6 @@ export default function ImmoBenin() {
         </div>
         <div style={{fontFamily:"Inter,sans-serif",fontSize:12,color:"#888",marginBottom:18}}>
           {filtered.length} annonce{filtered.length>1?"s":""} trouvée{filtered.length>1?"s":""}
-          {dbConnected&&<span style={{color:"#1C6E3D",marginLeft:8}}>• En direct depuis Supabase</span>}
         </div>
         {loading?<Spinner/>:(
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:18,marginBottom:40}}>
@@ -794,7 +1020,7 @@ export default function ImmoBenin() {
           <h2 style={{fontFamily:"Poppins,sans-serif",fontWeight:900,fontSize:22,color:"#fff",marginBottom:4}}>Publiez votre bien sur ImmoBénin</h2>
           <p style={{fontFamily:"Inter,sans-serif",color:"rgba(255,255,255,0.65)",marginBottom:24,fontSize:13}}>Simple, rapide, efficace — jusqu'à 8 photos par annonce</p>
           <div style={{display:"flex",gap:14,justifyContent:"center",flexWrap:"wrap",marginBottom:24}}>
-            {[{label:"Annonce standard",price:"2 000 XOF",desc:"60 jours · 8 photos",icon:"📋"},{label:"Annonce en vedette",price:"7 000 XOF",desc:"Standard + badge ⭐ + priorité",icon:"⭐"},{label:"Espace publicitaire",price:"Sur devis",desc:"Bandeau ou sidebar",icon:"📢"}].map(p=>(
+            {[{label:"Annonce standard",price:`${PRICE_STANDARD.toLocaleString("fr-FR")} XOF`,desc:"60 jours · 8 photos",icon:"📋"},{label:"Annonce en vedette",price:`${PRICE_TOTAL_FEATURED.toLocaleString("fr-FR")} XOF`,desc:"Standard + badge ⭐ + priorité",icon:"⭐"},{label:"Espace publicitaire",price:"Sur devis",desc:"Bandeau ou sidebar",icon:"📢"}].map(p=>(
               <div key={p.label} style={{background:"rgba(255,255,255,0.08)",borderRadius:14,padding:"18px 20px",textAlign:"center",minWidth:150,border:"1px solid rgba(232,160,32,0.3)"}}>
                 <div style={{fontSize:26,marginBottom:5}}>{p.icon}</div>
                 <div style={{fontFamily:"Poppins,sans-serif",fontWeight:700,fontSize:13,color:"#fff",marginBottom:3}}>{p.label}</div>
@@ -807,13 +1033,22 @@ export default function ImmoBenin() {
         </div>
       </div>
 
+      {/* AVERTISSEMENT ACHETEURS */}
+      <div style={{background:"#FFF8E1",borderTop:"1px solid #FFE0B2",padding:"16px 16px"}}>
+        <div style={{maxWidth:700,margin:"0 auto",textAlign:"center"}}>
+          <p style={{fontFamily:"Inter,sans-serif",fontSize:12,color:"#7A4F01",lineHeight:1.6,margin:0}}>
+            ⚠️ <strong>Avis important :</strong> ImmoBénin met en relation acheteurs et vendeurs mais ne vérifie pas systématiquement chaque annonce. Faites toujours vos propres vérifications avant tout paiement ou engagement (visite, titre de propriété, identité du vendeur). En cas de doute, utilisez notre <button onClick={()=>{setSelected(null);setView("concierge");}} style={{background:"none",border:"none",color:"#C0522A",fontWeight:700,textDecoration:"underline",cursor:"pointer",fontFamily:"Inter,sans-serif",fontSize:12,padding:0}}>service Concierge</button>.
+          </p>
+        </div>
+      </div>
+
       {/* FOOTER */}
       <footer style={{background:"#1C1C1E",padding:"22px 16px",textAlign:"center"}}>
         <div style={{fontFamily:"Poppins,sans-serif",fontWeight:900,fontSize:19,color:"#fff",marginBottom:4}}>Immo<span style={{color:"#C0522A"}}>Bénin</span></div>
         <p style={{fontFamily:"Inter,sans-serif",fontSize:11,color:"rgba(255,255,255,0.4)",margin:0}}>© 2025 ImmoBénin · Cotonou, Bénin · contact@immobenin.bj</p>
       </footer>
 
-      {selected&&<DetailModal listing={selected} onClose={()=>setSelected(null)}/>}
+      {selected&&<DetailModal listing={selected} onClose={()=>setSelected(null)} onRequestVerification={()=>setView("concierge")}/>}
       {showPublish&&<PublishModal onClose={()=>setShowPublish(false)} onSuccess={fetchListings}/>}
     </div>
   );
