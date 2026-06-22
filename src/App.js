@@ -202,7 +202,7 @@ function PhotoUploader({ photos, onChange }) {
                   boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
                 }}
               >
-                <img src={photo.preview} alt={`Photo ${idx+1}`} style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
+                <img src={photo.preview} alt={`${idx+1}`} style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }} />
                 {idx === 0 && (
                   <div style={{ position:"absolute", bottom:0, left:0, right:0, background:"rgba(192,82,42,0.85)", fontSize:9, fontWeight:700, color:"#fff", textAlign:"center", padding:"3px 0", fontFamily:"Inter,sans-serif" }}>
                     PRINCIPALE
@@ -260,7 +260,7 @@ function PhotoGallery({ images }) {
       <div style={{ position:"relative", borderRadius:"18px 18px 0 0", overflow:"hidden" }}>
         <img
           src={images[current]}
-          alt={`Photo ${current+1}`}
+          alt={`${current+1}`}
           onClick={() => setLightbox(true)}
           style={{ width:"100%", height:260, objectFit:"cover", display:"block", cursor:"zoom-in" }}
           onError={e => { e.target.src = FALLBACK_IMG; }}
