@@ -32,13 +32,13 @@ const db = {
     body:JSON.stringify(body)
   }).then(r=>r.json()),
   uploadImage: async (file, path) => {
-    const res = await fetch(`${SUPABASE_URL}/storage/v1/object/listing-images/${path}`, {
+    const res = await fetch(`${SUPABASE_URL}/storage/v1/object/Listing-Images/${path}`, {
       method:"POST",
       headers:{ apikey:SUPABASE_ANON_KEY, Authorization:`Bearer ${SUPABASE_ANON_KEY}`, "Content-Type": file.type },
       body: file
     });
     if (!res.ok) throw new Error("Upload échoué");
-    return `${SUPABASE_URL}/storage/v1/object/public/listing-images/${path}`;
+    return `${SUPABASE_URL}/storage/v1/object/public/Listing-Images/${path}`;
   }
 };
 
