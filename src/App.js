@@ -110,7 +110,7 @@ function formatPrice(price, type) {
   return type==="Location" ? `${Number(price).toLocaleString("fr-FR")} F CFA/mois` : `${Number(price).toLocaleString("fr-FR")} F CFA`;
 }
 const CATEGORIES = ["Tous","Vente","Location","Terrain","Bureau"];
-const CITIES = ["Toutes villes","Cotonou","Abomey-Calavi","Sèmè-Kpodji","Porto-Novo","Parakou"];
+const CITIES = ["Toutes villes","Cotonou","Abomey-Calavi","Porto-Novo","Parakou","Sèmè-Kpodji","Djougou","Bohicon","Natitingou","Lokossa","Ouidah","Abomey","Kandi","Pobè","Savè","Kpomassè","Comè","Aplahoué","Dassa-Zoumè","Allada","Malanville","Sakété","Tchaourou","Nikki","Cové","Banikoara","Ifangni","Toffo"];
 
 // ============================================================
 // PHOTO UPLOADER COMPONENT
