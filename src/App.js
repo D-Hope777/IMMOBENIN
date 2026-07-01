@@ -497,7 +497,10 @@ function PublishModal({onClose,onSuccess}) {
       setUploadProgress({current:0,total:photos.length,label:"Création du profil agent..."});
       const agentRes=await db.post("agents",{full_name:f.agent_name,phone:f.agent_phone,email:f.agent_email||null,agency_name:f.agency_name||null,city:f.city});
       const agent=Array.isArray(agentRes)?agentRes[0]:agentRes;
-      if(!agent?.id) throw new Error("Erreur lors de la création du profil agent");
+      if(!agent?.id){
+        const errMsg=agentRes?.message||agentRes?.error||agentRes?.hint||JSON.stringify(agentRes);
+        throw new Error(`Agent: ${errMsg}`);
+      }
 
       // 2. Upload photos
       const imageUrls=[];
@@ -519,7 +522,10 @@ function PublishModal({onClose,onSuccess}) {
       setUploadProgress({current:photos.length,total:photos.length,label:"Enregistrement de l'annonce..."});
       const listingRes=await db.post("listings",{agent_id:agent.id,title:f.title,description:f.description||null,type:f.type,category:f.category,city:f.city,neighborhood:f.neighborhood||null,price:parseInt(f.price),area:f.area?parseInt(f.area):null,bedrooms:f.bedrooms?parseInt(f.bedrooms):null,bathrooms:f.bathrooms?parseInt(f.bathrooms):null,is_featured:f.is_featured,images:imageUrls,payment_status:"pending",is_active:false,terms_accepted_at:new Date().toISOString()});
       const listing=Array.isArray(listingRes)?listingRes[0]:listingRes;
-      if(!listing?.id) throw new Error("Erreur lors de la création de l'annonce");
+      if(!listing?.id){
+        const errMsg=listingRes?.message||listingRes?.error||listingRes?.hint||JSON.stringify(listingRes);
+        throw new Error(`Listing: ${errMsg}`);
+      }
 
       // 4. Payment record
       await db.post("payments",{listing_id:listing.id,agent_id:agent.id,amount:cost,type:f.is_featured?"featured":"standard",status:"pending",payment_method:f.payment_method,payment_ref:f.payment_ref,amount_declared:parseInt(f.amount_declared)});
