@@ -935,6 +935,75 @@ function ConciergePage({ onBack, prefillListing }) {
 }
 
 // ============================================================
+// SÉLECTEUR DE PAYS — page d'accueil AfriqueMaison
+// ============================================================
+const COUNTRIES = [
+  { id:"benin",   name:"Bénin",         code:"bj", active:true,  img:"https://images.unsplash.com/photo-1486325212027-8081e485255e?w=600&q=80" },
+  { id:"togo",    name:"Togo",          code:"tg", active:false, img:"https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=600&q=80" },
+  { id:"rdc",     name:"RDC",           code:"cd", active:false, img:"https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&q=80" },
+  { id:"senegal", name:"Sénégal",       code:"sn", active:false, img:"https://images.unsplash.com/photo-1560185893-a55cbc8c57e8?w=600&q=80" },
+  { id:"civ",     name:"Côte d'Ivoire", code:"ci", active:false, img:"https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?w=600&q=80" },
+];
+
+function CountryCard({ c, count, onClick }) {
+  const active = c.active;
+  return (
+    <div
+      onClick={active ? onClick : undefined}
+      style={{position:"relative",borderRadius:16,overflow:"hidden",boxShadow:"0 4px 18px rgba(0,0,0,0.08)",cursor:active?"pointer":"default",transition:"transform 0.2s,box-shadow 0.2s",height:190}}
+      onMouseEnter={e=>{ if(active){ e.currentTarget.style.transform="translateY(-4px)"; e.currentTarget.style.boxShadow="0 12px 28px rgba(0,0,0,0.16)"; } }}
+      onMouseLeave={e=>{ e.currentTarget.style.transform=""; e.currentTarget.style.boxShadow="0 4px 18px rgba(0,0,0,0.08)"; }}
+    >
+      <img src={c.img} alt={c.name} style={{width:"100%",height:"100%",objectFit:"cover",display:"block",filter:active?"none":"grayscale(0.35)"}} onError={e=>{e.target.src=FALLBACK_IMG;}}/>
+      <div style={{position:"absolute",inset:0,background:"linear-gradient(to top, rgba(4,12,19,0.82) 0%, rgba(4,12,19,0.20) 45%, transparent 72%)"}}/>
+      {/* Drapeau — petit badge en haut à droite */}
+      <img src={`https://flagcdn.com/w80/${c.code}.png`} alt={`Drapeau ${c.name}`} style={{position:"absolute",top:12,right:12,width:34,height:23,objectFit:"cover",borderRadius:4,border:"1.5px solid rgba(255,255,255,0.85)",boxShadow:"0 2px 6px rgba(0,0,0,0.35)"}}/>
+      {!active && <div style={{position:"absolute",top:12,left:12,background:"rgba(255,255,255,0.92)",color:"#5F6B74",fontSize:11,fontWeight:700,padding:"4px 10px",borderRadius:20,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>Bientôt</div>}
+      <div style={{position:"absolute",bottom:0,left:0,right:0,padding:"16px 18px"}}>
+        <div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:800,fontSize:22,color:"#fff",lineHeight:1.2}}>{c.name}</div>
+        <div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:13,fontWeight:600,color:"rgba(255,255,255,0.9)",marginTop:2}}>
+          {active ? `${count} annonce${count>1?"s":""}` : "Bientôt disponible"}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CountrySelector({ onSelectBenin, beninCount }) {
+  return (
+    <div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",background:"#FAF8F5",minHeight:"100vh"}}>
+      <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+      <header style={{background:"#fff",borderBottom:"1px solid #EDE9E3",position:"sticky",top:0,zIndex:100,boxShadow:"0 2px 12px rgba(0,0,0,0.05)"}}>
+        <div style={{maxWidth:1100,margin:"0 auto",padding:"0 16px",display:"flex",alignItems:"center",justifyContent:"center",gap:8,height:64}}>
+          <svg width="38" height="38" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" style={{flexShrink:0}}>
+            <rect x="2" y="2" width="60" height="60" rx="16" fill="#005F2E"/>
+            <path d="M23 15 L43 15 L46 22 L51 30 L45 33 L41 41 L35 53 L31 47 L28 37 L20 33 L24 30 L17 26 L21 19 Z" fill="#FDFBF7"/>
+            <rect x="29" y="24" width="3.2" height="12" rx="1" fill="#005F2E"/>
+            <rect x="33.6" y="21" width="3.2" height="15" rx="1" fill="#005F2E"/>
+            <rect x="38.2" y="26" width="3.2" height="10" rx="1" fill="#005F2E"/>
+          </svg>
+          <span style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:800,fontSize:20,color:"#040C13"}}>Afrique<span style={{color:"#005F2E"}}>Maison</span></span>
+        </div>
+      </header>
+
+      <div style={{maxWidth:1000,margin:"0 auto",padding:"clamp(40px,7vw,72px) 16px 80px",textAlign:"center"}}>
+        <div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:700,fontSize:12,letterSpacing:1.5,textTransform:"uppercase",color:"#005F2E",marginBottom:12}}>Toute l'Afrique</div>
+        <h1 style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:800,fontSize:"clamp(30px,5vw,46px)",color:"#040C13",margin:"0 0 12px",lineHeight:1.15}}>Recherchez par pays</h1>
+        <p style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:15,color:"#5F6B74",maxWidth:560,margin:"0 auto 40px",lineHeight:1.6}}>Des annonces dans toutes les grandes villes du Bénin, Togo, RDC, Sénégal et Côte d'Ivoire.</p>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(250px,1fr))",gap:20,textAlign:"left"}}>
+          {COUNTRIES.map(c => <CountryCard key={c.id} c={c} count={beninCount} onClick={onSelectBenin}/>)}
+        </div>
+      </div>
+
+      <footer style={{background:"#040C13",padding:"22px 16px",textAlign:"center"}}>
+        <div style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:800,fontSize:18,color:"#fff",marginBottom:4}}>Afrique<span style={{color:"#005F2E"}}>Maison</span></div>
+        <p style={{fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:11,color:"rgba(255,255,255,0.4)",margin:0}}>© 2025 AfriqueMaison · L'immobilier en Afrique de l'Ouest et centrale</p>
+      </footer>
+    </div>
+  );
+}
+
+// ============================================================
 // MAIN APP
 // ============================================================
 export default function ImmoBenin() {
@@ -947,6 +1016,7 @@ export default function ImmoBenin() {
   const [showPublish,setShowPublish]=useState(false);
   const [featIdx,setFeatIdx]=useState(0);
   const [view,setView]=useState("home"); // "home" | "concierge"
+  const [country,setCountry]=useState(null); // null = page pays ; "benin" = site Bénin
 
   const fetchListings=useCallback(async()=>{
     setLoading(true);
@@ -975,6 +1045,11 @@ export default function ImmoBenin() {
   });
 
   const curFeat=featured[featIdx]||featured[0]||listings[0];
+
+  // Page d'accueil : sélection du pays (Bénin actif, autres à venir)
+  if (!country) {
+    return <CountrySelector onSelectBenin={()=>setCountry("benin")} beninCount={listings.length} />;
+  }
 
   if (view==="concierge") {
     return <ConciergePage onBack={()=>setView("home")} prefillListing={selected} />;
